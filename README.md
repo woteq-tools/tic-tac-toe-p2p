@@ -10,7 +10,7 @@ Networking uses [PeerJS](https://peerjs.com) to establish a **WebRTC data
 channel** between the two browsers, so once the players are connected the game
 data flows directly from device to device.
 
-**Live URL:** <https://sajjadsajjad.github.io/tic-tac-toe-p2p/>
+**Live URL:** <https://woteq-tools.github.io/tic-tac-toe-p2p/>
 
 ---
 
@@ -106,7 +106,7 @@ treated as dead and the "opponent disconnected" screen appears.
 ### Other implementation notes
 
 - **Room codes** use four characters from an alphabet that omits easily
-  confused glyphs (`I/1`, `O/0`, `S/5`, `Z/2`, `B/8`), so a code can be read
+  confused glyphs (`I`/`1`, `O`/`0`, `S`/`5`, `Z`/`2`), so a code can be read
   aloud over the phone without mistakes.
 - **One guest per room.** A second player who tries to join an occupied room
   is rejected with a `full` message and a friendly error.
@@ -157,7 +157,7 @@ The room code does not match any active room. Check that:
 - the host is still on the "Waiting for opponent" screen and has **not**
   refreshed the page (a refresh frees the room code and creates a new one);
 - the code was typed correctly — codes are four characters and never contain
-  `I`, `O`, `S`, `Z`, `B`, `0`, `1`, `2`, `5` or `8`;
+  `I`, `O`, `S`, `Z`, `0`, `1`, `2` or `5`;
 - the host's tab is still open and connected to the internet.
 
 **The join seems to hang.** The app waits about ten seconds for the data
