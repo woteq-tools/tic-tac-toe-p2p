@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Real-time peer-to-peer Tic-Tac-Toe. Two players, two devices, one link.">
+  <title>Tic-Tac-Toe · Peer-to-Peer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.92em' font-size='92'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app" id="app">
+
+    <!-- ===================== LOBBY ===================== -->
+    <section class="screen" id="screen-lobby" data-screen="lobby">
+      <header class="brand">
+        <h1 class="logo">Tic<span class="logo-dot">·</span>Tac<span class="logo-dot">·</span>Toe</h1>
+        <p class="tagline">Two players, two devices, one link — peer-to-peer over WebRTC.</p>
+      </header>
+
+      <div class="lobby-actions">
+        <button type="button" class="btn btn-primary btn-lg" id="btn-create">Create Game</button>
+
+        <div class="join-box">
+          <label class="join-label" for="input-code">Or join with a room code</label>
+          <div class="join-row">
+            <input class="code-input" id="input-code" type="text" inputmode="latin"
+                   autocomplete="off" autocapitalize="characters" spellcheck="false"
+                   maxlength="4" placeholder="CODE" aria-label="Room code">
+            <button type="button" class="btn" id="btn-join">Join Game</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="error" id="lobby-error" role="alert" hidden></p>
+    </section>
+
+    <!-- ===================== HOST / WAITING ===================== -->
+    <section class="screen" id="screen-host" data-screen="host" hidden>
+      <h2 class="screen-title" id="host-title">Waiting for opponent</h2>
+      <p class="screen-sub" id="host-sub">Send them this code or link.</p>
+
+      <div class="code-display" id="host-code" aria-live="polite">····</div>
+
+      <div class="share-row">
+        <input class="share-link" id="share-link" type="text" readonly aria-label="Shareable game link">
+        <button type="button" class="btn" id="btn-copy">Copy link</button>
+      </div>
+      <p class="copy-note" id="copy-note" aria-live="polite" hidden>Link copied!</p>
+
+      <p class="status status-wait" id="host-status">Waiting for an opponent to join…</p>
+
+      <button type="button" class="btn btn-ghost" id="btn-cancel-host">Cancel</button>
+    </section>
+
+    <!-- ===================== GAME ===================== -->
+    <section class="screen" id="screen-game" data-screen="game" hidden>
+      <div class="game-head">
+        <span class="badge" id="badge-mark">You are X</span>
+        <span class="badge badge-code" id="badge-code">····</span>
+        <span class="badge badge-conn" id="conn-status" data-state="connecting">Connecting…</span>
+      </div>
+
+      <p class="turn-label" id="turn-label" aria-live="polite">Your turn</p>
+
+      <div class="board" id="board" role="grid" aria-label="Tic-Tac-Toe board">
+        <button type="button" class="cell" data-index="0" role="gridcell" aria-label="Row 1, column 1, empty"></button>
+        <button type="button" class="cell" data-index="1" role="gridcell" aria-label="Row 1, column 2, empty"></button>
+        <button type="button" class="cell" data-index="2" role="gridcell" aria-label="Row 1, column 3, empty"></button>
+        <button type="button" class="cell" data-index="3" role="gridcell" aria-label="Row 2, column 1, empty"></button>
+        <button type="button" class="cell" data-index="4" role="gridcell" aria-label="Row 2, column 2, empty"></button>
+        <button type="button" class="cell" data-index="5" role="gridcell" aria-label="Row 2, column 3, empty"></button>
+        <button type="button" class="cell" data-index="6" role="gridcell" aria-label="Row 3, column 1, empty"></button>
+        <button type="button" class="cell" data-index="7" role="gridcell" aria-label="Row 3, column 2, empty"></button>
+        <button type="button" class="cell" data-index="8" role="gridcell" aria-label="Row 3, column 3, empty"></button>
+      </div>
+
+      <div class="result" id="result" hidden aria-live="polite"></div>
+
+      <div class="scores" id="scores">
+        <div class="score-item"><span class="score-label">X wins</span><span class="score-value" id="score-x">0</span></div>
+        <div class="score-item"><span class="score-label">O wins</span><span class="score-value" id="score-o">0</span></div>
+        <div class="score-item"><span class="score-label">Draws</span><span class="score-value" id="score-draws">0</span></div>
+      </div>
+
+      <div class="game-actions">
+        <button type="button" class="btn btn-primary" id="btn-rematch" hidden>Play again</button>
+        <button type="button" class="btn btn-ghost" id="btn-leave">Leave game</button>
+      </div>
+
+      <div class="invite" id="rematch-invite" hidden>
+        <span class="invite-text">Your opponent wants to play again.</span>
+        <div class="invite-actions">
+          <button type="button" class="btn btn-primary" id="btn-rematch-accept">Accept</button>
+          <button type="button" class="btn btn-ghost" id="btn-rematch-decline">Decline</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== DISCONNECTED ===================== -->
+    <section class="screen" id="screen-disconnected" data-screen="disconnected" hidden>
+      <div class="disconnect-icon" aria-hidden="true">📡</div>
+      <h2 class="screen-title" id="disc-title">Opponent disconnected</h2>
+      <p class="screen-sub" id="disc-msg">The connection was closed.</p>
+      <button type="button" class="btn btn-primary btn-lg" id="btn-back-lobby">Back to lobby</button>
+    </section>
+
+  </main>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
