@@ -319,10 +319,17 @@ h1, h2, p { margin: 0; }
   -webkit-user-select: all;
 }
 
-.share-row { display: flex; gap: 10px; min-width: 0; }
+/* On narrow phones the link would be truncated to nothing, so the button
+   drops below it and the link gets a full-width row. */
+.share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
 
 .share-link {
-  flex: 1 1 auto;
+  flex: 1 1 100%;
   min-width: 0;
   width: 100%;
   min-height: var(--tap);
@@ -335,7 +342,7 @@ h1, h2, p { margin: 0; }
   text-overflow: ellipsis;
 }
 
-#btn-copy { flex: 0 0 auto; white-space: nowrap; }
+#btn-copy { flex: 1 1 auto; white-space: nowrap; }
 
 .copy-note {
   margin-top: -12px;
@@ -599,6 +606,9 @@ h1, h2, p { margin: 0; }
   .join-row { justify-content: center; }
   .code-input { flex: 0 1 240px; }
   .board { --board-size: min(80vw, 46vh, 460px); }
+  /* Plenty of room for the link, so put the button beside it again. */
+  .share-link { flex: 1 1 auto; }
+  #btn-copy { flex: 0 0 auto; }
 }
 
 @media (min-width: 900px) and (min-height: 720px) {

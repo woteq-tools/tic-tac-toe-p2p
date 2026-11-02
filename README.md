@@ -1,158 +1,204 @@
 # Tic-Tac-Toe · Peer-to-Peer
 
-A real-time, two-player Tic-Tac-Toe that runs entirely in the browser.
-Two people on the same Wi-Fi open the hosted page on two different devices
-and play against each other.
+A two-player, **real-time** Tic-Tac-Toe that runs entirely in the browser. Two
+people on the same Wi-Fi (or on different networks) open the hosted page on two
+different devices and play against each other.
 
-There is **no server, no backend and no build step**. The two browsers talk
-to each other directly over a WebRTC data channel using
-[PeerJS](https://peerjs.com). The only third party involved is the free
-public PeerJS signalling server, which is used once to introduce the two
-peers; after that, the game data flows peer-to-peer.
+There is **no backend and no build step** — the app is three static files
+(`index.html`, `style.css`, `script.js`) served straight from GitHub Pages.
+Networking uses [PeerJS](https://peerjs.com) to establish a **WebRTC data
+channel** between the two browsers, so once the players are connected the game
+data flows directly from device to device.
 
----
-
-## Live site
-
-**https://woteq-tools.github.io/tic-tac-toe-p2p/**
+**Live URL:** <https://sajjadsajjad.github.io/tic-tac-toe-p2p/>
 
 ---
 
 ## How to play
 
-### 1. Create a game (host)
+### 1. The host creates a game
 
-1. Open the live site and tap **Create Game**.
-2. You get a **4-character room code** (for example `R6DA`) and a shareable
-   link. Codes deliberately avoid characters that are easy to confuse when
-   read aloud (`I`/`1`, `O`/`0`, `S`/`5`, `Z`/`2`).
-3. Send the code — or tap **Copy link** and send the whole URL — to your
-   opponent.
-4. The page waits for an opponent to join.
+1. Open the live URL on your phone or laptop.
+2. Tap **Create Game**.
+3. A four-character room code appears, for example `H7KQ`, together with a
+   shareable link (`https://<host>/?room=H7KQ`).
+4. Tap **Copy link** and send it to your opponent — by text, chat or email. You
+   can also just read the four-character code out loud.
 
-### 2. Join a game (guest)
+The host plays **X** and always moves first.
 
-1. Open the live site on the second device.
-2. Type the room code into the box (it uppercases as you type) and tap
-   **Join Game**.
-   * Alternatively, just open the shared link — the `?room=CODE` deep link
-     joins the room automatically.
-3. You are **O** and move second.
+### 2. The guest joins
+
+Two ways to join:
+
+- **Paste the link.** Opening it opens the page and joins the room
+  automatically (`?room=CODE` deep link).
+- **Type the code.** Tap **Join Game** and enter the four characters. The input
+  uppercases automatically and ignores characters the game never uses.
+
+The guest plays **O**.
 
 ### 3. Play
 
-- The host is **X** and moves first.
-- Tap a cell to place your mark. The winning line is highlighted, and the
-  result plus a running scoreboard (X wins / O wins / draws) is shown.
-- When the round ends, tap **Play again**. The next round only starts once
-  **both** players have agreed, and the player who starts alternates each
-  round (X opens round 1, O opens round 2, and so on).
-- **Leave game** returns you to the lobby and tells your opponent.
+- Tap a square to place your mark. Only the squares you are allowed to play
+  are tappable; the board locks itself when it is your opponent's turn.
+- The host is the referee. It validates every move and broadcasts the whole
+  board, so both screens always agree.
+- A win highlights the winning line in place. A draw is reported as a draw.
+- The scoreboard (X wins / O wins / draws) is kept for the session.
 
-The page works in portrait on a phone and adapts to a desktop browser. It
-follows your system's light/dark preference.
+### 4. Play again
+
+After a game ends, tap **Play again**. A rematch starts only once *both*
+players have agreed, and the player who opens each round alternates — so the
+first game is opened by X and the next one by O. The host is asked to confirm
+when the guest requests a rematch.
+
+### 5. Leaving
+
+Tap **Leave game** at any time to return to the lobby. If your opponent
+disconnects, both sides are shown a clear message and a **Back to lobby**
+button.
 
 ---
 
 ## How it works
 
-### Peer-to-peer networking
+### Peer-to-peer with PeerJS
 
-Both peers register with PeerJS's default free public signalling server.
-The signalling server is only used to exchange connection details; once the
-WebRTC data channel is up, **every move travels directly between the two
-devices**.
+PeerJS provides the *signalling* that lets two browsers find each other:
 
-- The host creates a peer whose ID is `ttt-<CODE>`, so the room code maps
-  directly onto the peer ID. If that ID is already taken, PeerJS reports
-  `unavailable-id` and the host automatically picks a new code and retries.
-- The guest connects to `ttt-<CODE>` with `peer.connect(...)`.
-- ICE is configured with Google's public STUN servers
-  (`stun:stun.l.google.com:19302` and `stun:stun1.l.google.com:19302`)
-  together with PeerJS's public TURN fallback, so devices on different
-  networks can still connect.
+1. The **host** creates a Peer with the id `ttt-<CODE>`, so the four-character
+   room code maps directly onto a PeerJS peer id. If that id is already taken
+   the server reports `unavailable-id`; the app then quietly generates a new
+   code and retries, so you never see a collision.
+2. The **guest** creates its own Peer and calls `peer.connect('ttt-<CODE>')`.
+   PeerJS uses the free public signalling server to exchange the WebRTC offer,
+   answer and ICE candidates.
+3. Once the handshake completes, the two browsers hold a direct
+   `RTCDataChannel` between them. From that point on the game moves over that
+   channel — the signalling server is no longer involved in the game itself.
+
+The signalling server only brokers the initial handshake; it never sees the
+board.
 
 ### The host is authoritative
 
-The host owns the game. It validates every move and broadcasts the
-resulting state; the guest only ever *asks* to play.
+The host owns the game state and validates every move:
 
-```
-guest  -- { type: 'move', index }  -->  host
-guest  <-- { type: 'state', board, turn, winner, winLine, scores } -- host
-```
+- The **guest** only ever sends `{ type: 'move', index }`.
+- The **host** checks that it is the guest's turn, that the cell is empty and
+  that the game is not already over. Only then does it apply the move.
+- The host then broadcasts the complete state —
+  `{ type: 'state', board, turn, winner, winLine, scores, round, rematch }` —
+  and the guest renders exactly that.
 
-The guest never sends a board. It sends a cell index, and the host decides
-whether that move is legal (correct turn, empty cell, game not over). This
-keeps both clients in lockstep and makes it impossible for a guest to
-tamper with the board or move out of turn. Every inbound message is checked
-for shape and type before it is used, so a malformed or hostile peer cannot
-corrupt the local state.
+Because the guest never writes to the board directly, the two screens cannot
+drift apart and a modified client cannot cheat its way to a win.
 
-The host also enforces a **one guest per room** limit: a second player
-connecting to an occupied room is told the room is full and disconnected.
+### Keep-alive
 
-### Keeping the connection honest
+A dropped data channel does not always announce itself (a closed phone tab, a
+dropped Wi-Fi connection). Both players therefore ping each other every four
+seconds; if a ping goes unanswered for fourteen seconds the connection is
+treated as dead and the "opponent disconnected" screen appears.
 
-A WebRTC data channel does not always announce that the far end vanished —
-a phone whose tab was killed or a device that dropped off Wi-Fi can go quiet
-without a close frame. Both players therefore send a lightweight `ping`
-every few seconds; if a ping goes unanswered for ~14 seconds the connection
-is declared dead and the other player is shown a clear "opponent
-disconnected" screen with a button back to the lobby.
+### Other implementation notes
 
----
+- **Room codes** use four characters from an alphabet that omits easily
+  confused glyphs (`I/1`, `O/0`, `S/5`, `Z/2`, `B/8`), so a code can be read
+  aloud over the phone without mistakes.
+- **One guest per room.** A second player who tries to join an occupied room
+  is rejected with a `full` message and a friendly error.
+- **Every incoming message is validated** — shape, type and field ranges — so a
+  malformed or hostile peer cannot corrupt the local game state.
+- **Responsive and mobile-first.** The board is a square that scales to the
+  viewport, tap targets are at least 48 px, text selection and double-tap zoom
+  are disabled on the board, and each cell is a real `<button>` with an
+  `aria-label` for screen readers.
+- **Light and dark themes** follow the operating system's `prefers-color-scheme`
+  setting, with a `prefers-reduced-motion` fallback for the animations.
 
-## Project layout
+### Files
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | Markup for the four screens (lobby, waiting, game, disconnected) |
-| `style.css` | Mobile-first styling, CSS variables, light/dark via `prefers-color-scheme` |
-| `script.js` | All the logic: UI helpers, pure game functions, networking, screen management |
+| `index.html` | Page structure: lobby, waiting room, board, disconnected screen. |
+| `style.css` | All styling, light/dark themes, animations, responsive layout. |
+| `script.js` | Game logic (pure functions), PeerJS networking and UI wiring. |
 
-No dependencies to install, no bundler, no `npm install`. PeerJS is loaded
-from a CDN with a pinned version:
+PeerJS itself is loaded from a CDN at a pinned version, with a Subresource
+Integrity hash so the file cannot be tampered with:
 
 ```html
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-```
-
-To run it locally, serve the folder over HTTP (opening the file directly
-with `file://` will not work, because browsers restrict WebRTC there):
-
-```bash
-python3 -m http.server 8000
-# then open http://localhost:8000/
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
+        integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR"
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 ```
 
 ---
 
 ## Troubleshooting
 
-**Both devices need internet access.** Both players must be able to reach
-the PeerJS signalling server and to load the page from GitHub Pages. Only
-the *setup* needs the signalling server — once the game is running, the
-moves travel directly between the two devices.
+**Both devices need internet access.** They must be able to reach the PeerJS
+signalling server and GitHub Pages. Once the two browsers are connected, the
+game data flows peer-to-peer and no longer touches any server — but the
+initial handshake still requires internet.
 
-**The devices cannot connect to each other.** If two devices on the same
-Wi-Fi fail to connect, your router may have "AP isolation" / "client
-isolation" enabled, which stops devices on the same network from talking to
-each other directly. Try disabling it in the router settings, or use a
-mobile hotspot instead. Moving one device onto cellular data is another
-quick way to confirm this is the cause — the TURN fallback should then carry
-the connection.
+**The two devices cannot connect even though they are on the same Wi-Fi.**
+Some routers enable "AP isolation" / "client isolation", which stops devices
+on the same wireless network from talking to each other directly. Try
+disabling it in the router settings, or connect one device through a mobile
+hotspot instead.
 
-**"Room not found."** Check that the host is still sitting on the waiting
-screen and has not refreshed the page. Refreshing creates a brand new room
-with a new code, so the old code no longer exists. The host must also still
-have a working internet connection for the room to stay registered.
+**"Room not found. Check the code and that the host is still waiting."**
+The room code does not match any active room. Check that:
 
-**"That room is already full."** Only one guest can play in a room at a
-time. Ask your opponent to leave first, or have the host start a fresh
-game and share the new code.
+- the host is still on the "Waiting for opponent" screen and has **not**
+  refreshed the page (a refresh frees the room code and creates a new one);
+- the code was typed correctly — codes are four characters and never contain
+  `I`, `O`, `S`, `Z`, `B`, `0`, `1`, `2`, `5` or `8`;
+- the host's tab is still open and connected to the internet.
 
-**The connection drops during a game.** If the other player closes the tab
-or loses network, the game ends with a "disconnected" message after the
-keep-alive timeout. Create a new game to play again — room codes are not
-reserved after the host leaves.
+**The join seems to hang.** The app waits about ten seconds for the data
+channel, then reports that the room could not be found. If the connection is
+very slow, try again — a phone that has just switched networks often needs a
+few seconds to discover its interface.
+
+**The screen is frozen and the opponent seems to have gone.** The other player
+may have closed the tab or lost their connection without a clean disconnect.
+The keep-alive detects this within roughly fifteen seconds and shows the
+"Opponent disconnected" screen.
+
+**The browser blocks the game.** The app needs WebRTC, which requires a
+secure context. `https://` (as used by GitHub Pages) is fine; opening
+`index.html` directly from the filesystem with `file://` is not.
+
+**A corporate or school network blocks the connection.** Some networks filter
+WebRTC traffic. The app already uses Google's public STUN servers and
+PeerJS's public TURN servers, but a network that blocks UDP entirely will
+still prevent two devices from connecting.
+
+---
+
+## Local development
+
+The project is completely static, so any static file server works:
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000/
+```
+
+or
+
+```bash
+npx serve .
+```
+
+No npm dependencies, no bundler and no build step are required — the
+repository contains exactly what is served.
+
+## Licence
+
+MIT.
